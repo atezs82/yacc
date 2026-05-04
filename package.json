@@ -1,0 +1,30 @@
+{
+  "name": "@atezs82/yet-another-claude-commenter",
+  "version": "1.0.0",
+  "description": "Google Docs-style inline commenting for Claude responses",
+  "type": "module",
+  "bin": {
+    "yet-another-claude-commenter": "./server.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
+    "start": "node server.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "server.js",
+    "security.js",
+    "static/"
+  ],
+  "license": "MIT"
+}

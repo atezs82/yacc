@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Commenter</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+        integrity="sha512-rO+olRTkcf304DQBxSWxln8JXCzTHlKnIdnMUwYvQa9/Jd4cQaNkItIUj6Z4nvW1dqK0SKXLbn9h4KwZTNtAyw=="
+        crossorigin="anonymous">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.9.1/marked.min.js"
+          integrity="sha512-7q8JAnKR3VuOr+A7TcWNtS94mmHTkOM1Z4Uwk0nH8gO87ez5hADNivYf0SDpSKpJ0daDf815uB8YpDV5RZoctQ=="
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+          integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ=="
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"
+          integrity="sha512-Y1p/STLW/B+l+MPJ5K5OdILMwJa2gMFXXmC/qsyDuGH9uc1MZMUo6/8YQUg9Ut4ns8KGCrCtt+58UwmNFFiVvA=="
+          crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>Yet Another Claude Commenter</h1>
+    <div class="header-right">
+      <button id="settings-btn">⚙ Settings</button>
+      <button id="reset-btn">New conversation</button>
+    </div>
+  </header>
+
+  <div id="settings-panel">
+    <div class="setting-row">
+      <div class="setting-label">Claude binary</div>
+      <div id="bin-path" style="font-size:12px;font-family:monospace;color:var(--muted);padding:4px 0;"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">Set <code>CLAUDE_PATH</code> env var to change.</div>
+    </div>
+  </div>
+
+  <div id="workspace">
+    <div id="chat">
+      <div id="empty-state">Send a message to start.</div>
+    </div>
+  </div>
+
+  <div id="hint-bar">
+    <label id="hint-label">
+      <input type="checkbox" id="send-comments-chk" checked>
+      <span id="hint-text"></span>
+    </label>
+  </div>
+  <div id="file-list"></div>
+  <input type="file" id="file-input" multiple style="position:absolute;width:0;height:0;overflow:hidden;opacity:0">
+  <div id="input-area">
+    <button id="attach-btn" title="Attach image">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+      </svg>
+    </button>
+    <textarea id="input" placeholder="Message Claude…" rows="1"></textarea>
+    <button id="send-btn">Send</button>
+  </div>
+
+  <!-- Text-selection comment popover -->
+  <div id="sel-popover" class="sel-pop">
+    <div id="sel-quote" class="pop-quote"></div>
+    <textarea id="sel-textarea" placeholder="Your comment…" rows="3"></textarea>
+    <div class="pop-actions">
+      <button class="pop-btn-cancel" id="sel-cancel">Cancel</button>
+      <button class="pop-btn-submit" id="sel-submit">Comment →</button>
+    </div>
+  </div>
+
+  <!-- View / edit / delete saved comment popover -->
+  <div id="view-popover" class="sel-pop">
+    <div id="view-quote" class="pop-quote"></div>
+    <!-- View mode -->
+    <div id="view-body"></div>
+    <div class="pop-actions" id="view-actions-view">
+      <button class="pop-btn-delete" id="view-delete" title="Delete comment">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+        </svg>
+      </button>
+      <button class="pop-btn-edit" id="view-edit" title="Edit comment">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button class="pop-btn-cancel" id="view-close">Close</button>
+    </div>
+    <!-- Edit mode -->
+    <textarea id="view-textarea" rows="3" style="display:none"></textarea>
+    <div class="pop-actions" id="view-actions-edit" style="display:none">
+      <button class="pop-btn-cancel" id="view-cancel-edit">Cancel</button>
+      <button class="pop-btn-submit" id="view-save">Save</button>
+    </div>
+  </div>
+
+</div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

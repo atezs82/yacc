@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.js.map
+
+# compiled output (built from src/)
+server.js
+security.js
+static/app.js
+static/chat.js
+static/comments.js
+static/files.js
+static/renderer.js
+static/settings.js
+
+.env
+.env.*
+npm-debug.log*
