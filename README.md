@@ -4,6 +4,10 @@ A local web UI for chatting with Claude that adds Google Docs-style inline comme
 
 Select any text in a Claude response, leave a comment on it, and send those comments back as context for the next turn.
 
+## Disclaimer
+
+The code currently is in a proof-of-concept state. Minimal security hardening and usability fixes were done but use it at your own risk.
+
 ## Requirements
 
 - Node.js ≥ 18
