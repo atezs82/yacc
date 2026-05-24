@@ -50,7 +50,7 @@ document.addEventListener('mouseup', e => {
   const quote = sel.toString().trim();
   document.getElementById('sel-quote')!.textContent =
     '"' + (quote.length > 80 ? quote.slice(0, 80) + '…' : quote) + '"';
-  document.getElementById('sel-textarea')!.textContent = '';
+  (document.getElementById('sel-textarea') as HTMLTextAreaElement).value = '';
   const pop = document.getElementById('sel-popover')!;
   popoverPosition(pop, range.getBoundingClientRect());
   pop.classList.add('open');
