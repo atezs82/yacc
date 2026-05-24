@@ -40,10 +40,12 @@ async function sendMessage(): Promise<void> {
   setBusy(true);
 
   addUserMessage(text, attachments.map(a => a.name));
-  await streamInto('/api/send', { content, files: attachments }, addAssistantContainer());
-
-  setBusy(false);
-  input.focus();
+  try {
+    await streamInto('/api/send', { content, files: attachments }, addAssistantContainer());
+  } finally {
+    setBusy(false);
+    input.focus();
+  }
 }
 
 document.getElementById('send-btn')!.addEventListener('click', sendMessage);

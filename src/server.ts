@@ -93,6 +93,7 @@ if (!rawPath) {
 }
 
 const CLAUDE_BIN = resolveBin(rawPath);
+const VERBOSE = process.argv.slice(2).includes('--verbose');
 let CLAUDE_VERSION = '';
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -172,6 +173,12 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse)
     ? textParts.join('\n\n') + '\n\n' + prompt
     : prompt;
 
+  args.push(effectivePrompt);
+  if (VERBOSE) {
+    console.log('\n[claude args] ' + [CLAUDE_BIN, ...args.slice(0, -1)].join(' '));
+    console.log('[claude ←]\n' + effectivePrompt + '\n');
+  }
+
   let proc;
   try { proc = spawn(CLAUDE_BIN, args); }
   catch {
@@ -187,13 +194,16 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse)
     res.end();
   });
 
-  proc.stdin.write(effectivePrompt);
   proc.stdin.end();
 
+  proc.stderr.resume();
+
   let buf = '';
+  let verboseText = '';
   proc.stdout.on('data', (chunk: Buffer) => {
     buf += chunk.toString('utf8');
     if (buf.length > MAX_LINE_BUF) {
+      streaming = false;
       proc.kill('SIGTERM');
       res.write(sse({ error: 'Output exceeded size limit.' }));
       res.end();
@@ -213,10 +223,14 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse)
         const inner = event.event;
         if (inner?.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
           const text = inner.delta.text ?? '';
-          if (text) res.write(sse({ delta: text }));
+          if (text) {
+            res.write(sse({ delta: text }));
+            if (VERBOSE) verboseText += text;
+          }
         }
       } else if (event.type === 'result') {
         sentResult = true;
+        if (VERBOSE) console.log('\n[claude →]\n' + (verboseText || event.result || '') + '\n');
         res.write(event.is_error ? sse({ error: event.result ?? 'CLI error' }) : sse({ done: true }));
       }
     }
@@ -232,7 +246,7 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse)
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-const security = new SecurityLayer(PORT);
+const security = new SecurityLayer(PORT, VERBOSE);
 
 const server = http.createServer(async (req: IncomingMessage, res: ServerResponse) => {
   if (security.guard(req, res)) return;
@@ -307,6 +321,14 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
     console.error(`FAILED\n\n  Error: ${(e as Error).message}\n  Binary: ${CLAUDE_BIN}\n`);
     process.exit(1);
   }
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`\n  Error: port ${PORT} is already in use.\n  Kill the existing process or open http://localhost:${PORT} if it's already running.\n`);
+      process.exit(1);
+    }
+    throw err;
+  });
 
   server.listen(PORT, '127.0.0.1', () => {
     const url = `http://localhost:${PORT}`;
