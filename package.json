@@ -15,7 +15,11 @@
     "@anthropic-ai/sdk": "^0.91.1"
   },
   "devDependencies": {
+    "@highlightjs/cdn-assets": "^11.11.1",
     "@types/node": "^22.0.0",
+    "dompurify": "^3.4.2",
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.3",
     "typescript": "^5.7.0"
   },
   "engines": {

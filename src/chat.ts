@@ -89,9 +89,7 @@ export async function streamInto(
   segContainer.appendChild(thinkEl);
   scrollChat();
 
-  const res = await apiFetch(endpoint, body);
   let liveEl = makeLiveSegment();
-
   const seg = new Segmenter(text => {
     finalizeSegment(liveEl, text);
     liveEl = makeLiveSegment();
@@ -99,27 +97,62 @@ export async function streamInto(
     scrollChat();
   });
 
-  for await (const data of parseSse(res.body!)) {
-    if (data.error) {
+  let gotDone = false;
+  try {
+    let res: Response;
+    try {
+      res = await apiFetch(endpoint, body);
+    } catch {
+      throw new Error('Cannot reach server — is it running?');
+    }
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+    for await (const data of parseSse(res.body!)) {
+      if (data.error) {
+        thinkEl.remove();
+        if (liveEl.isConnected) liveEl.remove();
+        showError(segContainer, data.error);
+        scrollChat();
+        gotDone = true;
+        break;
+      }
+      if (data.done) {
+        if (thinkEl.isConnected) thinkEl.remove();
+        seg.flush();
+        if (liveEl.isConnected) {
+          if (liveEl.textContent?.trim()) finalizeSegment(liveEl, liveEl.textContent.trim());
+          else liveEl.remove();
+        }
+        const wrapper = segContainer.parentElement;
+        const chat = document.getElementById('chat');
+        if (wrapper && chat) {
+          const wrapperTop = wrapper.getBoundingClientRect().top;
+          const chatTop = chat.getBoundingClientRect().top;
+          if (wrapperTop < chatTop) {
+            wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+        gotDone = true;
+        break;
+      }
+      if (data.delta) {
+        if (thinkEl.isConnected) thinkEl.replaceWith(liveEl);
+        const remaining = seg.push(data.delta);
+        liveEl.textContent = remaining;
+        scrollChat();
+      }
+    }
+  } catch (e) {
+    thinkEl.remove();
+    if (liveEl.isConnected) liveEl.remove();
+    showError(segContainer, e instanceof Error ? e.message : String(e));
+    scrollChat();
+    gotDone = true;
+  } finally {
+    if (!gotDone) {
       thinkEl.remove();
       if (liveEl.isConnected) liveEl.remove();
-      showError(segContainer, data.error);
-      scrollChat();
-      break;
-    }
-    if (data.done) {
-      if (thinkEl.isConnected) thinkEl.remove();
-      seg.flush();
-      if (liveEl.isConnected) {
-        if (liveEl.textContent?.trim()) finalizeSegment(liveEl, liveEl.textContent.trim());
-        else liveEl.remove();
-      }
-      scrollChat();
-      break;
-    }
-    if (data.delta) {
-      if (thinkEl.isConnected) thinkEl.replaceWith(liveEl);
-      liveEl.textContent = seg.push(data.delta);
+      showError(segContainer, 'No response received from server.');
       scrollChat();
     }
   }

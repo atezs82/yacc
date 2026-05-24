@@ -2,8 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'http';
 
 const CSP = [
   "default-src 'none'",
-  "script-src 'self' cdn.jsdelivr.net cdnjs.cloudflare.com",
-  "style-src 'self' cdnjs.cloudflare.com",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
   "connect-src 'self'",
   "img-src 'self' data: blob:",
   "frame-ancestors 'none'",
@@ -82,41 +82,38 @@ function localOnlyPage(remoteAddress: string): string {
 
 export class SecurityLayer {
   private readonly port: number;
+  private readonly verbose: boolean;
 
-  constructor(port: number) {
+  constructor(port: number, verbose = false) {
     this.port = port;
+    this.verbose = verbose;
   }
 
-  // Blocks DNS-rebinding: even though the server binds to 127.0.0.1, a browser
-  // on the same machine can be tricked into sending requests to localhost via a
-  // domain whose DNS has been rotated to 127.0.0.1. The Host header will carry
-  // the attacker's domain name rather than "localhost", which we reject here.
   private isLocalHost(req: IncomingMessage): boolean {
     const host = req.headers['host'];
     return host === `localhost:${this.port}` || host === `127.0.0.1:${this.port}`;
   }
 
-  // Blocks cross-origin CSRF on state-mutating methods: browsers always include
-  // Origin on cross-origin POST/DELETE, so anything not originating from our own
-  // page is rejected.
   private isSameOrigin(req: IncomingMessage): boolean {
     const origin = req.headers['origin'];
-    if (!origin) return false;
+    if (!origin) return true;
     return (
       origin === `http://localhost:${this.port}` ||
       origin === `http://127.0.0.1:${this.port}`
     );
   }
 
-  // Sets security headers and enforces same-machine access policy.
-  // Returns true if the request was fully handled (rejected); the caller must
-  // stop processing immediately when this returns true.
   guard(req: IncomingMessage, res: ServerResponse): boolean {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', CSP);
 
+    if (this.verbose) {
+      console.log(`[guard] ${req.method} ${req.url}  host=${req.headers['host'] ?? '(none)'}  origin=${req.headers['origin'] ?? '(none)'}`);
+    }
+
     if (!this.isLocalHost(req)) {
+      if (this.verbose) console.log(`[guard] BLOCKED — host not local`);
       const ip = req.socket.remoteAddress ?? 'unknown';
       res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(localOnlyPage(ip));
@@ -124,11 +121,13 @@ export class SecurityLayer {
     }
 
     if ((req.method === 'POST' || req.method === 'DELETE') && !this.isSameOrigin(req)) {
+      if (this.verbose) console.log(`[guard] BLOCKED — origin mismatch: ${req.headers['origin']}`);
       res.writeHead(403);
       res.end('Forbidden');
       return true;
     }
 
+    if (this.verbose) console.log(`[guard] PASSED`);
     return false;
   }
 }
