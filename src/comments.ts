@@ -8,12 +8,17 @@ export interface Comment {
   turns: Turn[];
   markEl: HTMLElement | null;
   anchorEl: HTMLButtonElement;
+  sent: boolean;
 }
 
 export const selComments = new Map<string, Comment>();
 
+export function pendingComments(): Comment[] {
+  return [...selComments.values()].filter(c => !c.sent);
+}
+
 export function updateSelHint(): void {
-  const n = selComments.size;
+  const n = pendingComments().length;
   document.getElementById('hint-bar')!.classList.toggle('visible', n > 0);
   document.getElementById('hint-text')!.textContent =
     n > 0 ? `${n} comment${n > 1 ? 's' : ''} above will be sent` : '';
@@ -163,7 +168,7 @@ class SelPopover {
       r.insertNode(anchor);
     }
 
-    selComments.set(id, { quote, turns, markEl, anchorEl: anchor });
+    selComments.set(id, { quote, turns, markEl, anchorEl: anchor, sent: false });
     updateSelHint();
     this.close();
     window.getSelection()?.removeAllRanges();

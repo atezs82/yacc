@@ -1,7 +1,7 @@
 import './settings.js';
 import './comments.js';
 import { addUserMessage, addAssistantContainer, streamInto, resetChat } from './chat.js';
-import { selComments, updateSelHint, type Comment } from './comments.js';
+import { selComments, updateSelHint, pendingComments, type Comment } from './comments.js';
 import { clearFiles, readFilesAsAttachments } from './files.js';
 
 let busy = false;
@@ -35,11 +35,15 @@ async function sendMessage(): Promise<void> {
   clearFiles();
 
   let content = text;
-  if (selComments.size > 0 && (document.getElementById('send-comments-chk') as HTMLInputElement).checked) {
-    const blocks = [...selComments.values()].map(renderCommentBlock).join('\n\n---\n\n');
+  const pending = pendingComments();
+  if (pending.length > 0 && (document.getElementById('send-comments-chk') as HTMLInputElement).checked) {
+    const blocks = pending.map(renderCommentBlock).join('\n\n---\n\n');
     content = blocks + '\n\n' + text;
   }
-  if (selComments.size > 0) { selComments.clear(); updateSelHint(); }
+  if (pending.length > 0) {
+    for (const c of pending) c.sent = true;
+    updateSelHint();
+  }
 
   input.value = '';
   autoResize(input);
