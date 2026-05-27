@@ -284,8 +284,8 @@ class ViewPopover {
     this.bodyEl.textContent = ViewPopover.renderTurns(comment.turns);
     this.deleteBtn.style.display = isLatest ? '' : 'none';
     this.editBtn.style.display = isLatest ? '' : 'none';
-    placePopover(this.root, anchor.getBoundingClientRect(), { fallbackHeight: 180 });
     this.root.classList.add('open');
+    placePopover(this.root, anchor.getBoundingClientRect(), { fallbackHeight: 180 });
   }
 
   close(): void {
