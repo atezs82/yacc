@@ -5,6 +5,7 @@ dist/
 # compiled output (built from src/)
 server.js
 security.js
+testMode.js
 static/app.js
 static/chat.js
 static/comments.js

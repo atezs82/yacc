@@ -28,6 +28,7 @@
   "files": [
     "server.js",
     "security.js",
+    "testMode.js",
     "static/"
   ],
   "license": "MIT"

@@ -6,6 +6,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execFile, spawn } from 'child_process';
 import { SecurityLayer } from './security.js';
+import {
+  hasTestFlag,
+  streamCanned,
+  printTestModeBanner,
+  TEST_MODE_BIN,
+  TEST_MODE_VERSION,
+} from './testMode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8765;
@@ -85,16 +92,20 @@ function testBin(bin: string): Promise<string> {
   });
 }
 
+const TEST_MODE = hasTestFlag(process.argv);
+
 const rawPath = parseCliArg() ?? process.env['CLAUDE_PATH'];
-if (!rawPath) {
+if (!TEST_MODE && !rawPath) {
   console.error('\n  Error: Claude binary path not specified.');
   console.error('  Use --claude-path <path>  or  set the CLAUDE_PATH env var.\n');
   process.exit(1);
 }
 
-const CLAUDE_BIN = resolveBin(rawPath);
+const CLAUDE_BIN = TEST_MODE ? TEST_MODE_BIN : resolveBin(rawPath as string);
 const VERBOSE = process.argv.slice(2).includes('--verbose');
-let CLAUDE_VERSION = '';
+let CLAUDE_VERSION = TEST_MODE ? TEST_MODE_VERSION : '';
+
+const stream = TEST_MODE ? streamCanned : streamCLI;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -141,7 +152,7 @@ function isPrintable(s: string): boolean {
   return nonPrintable / check < 0.05;
 }
 
-function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse): void {
+function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse, isolated = false): void {
   if (streaming) {
     startSSE(res);
     res.write(sse({ error: 'Another request is already in progress.' }));
@@ -272,27 +283,33 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
     const body = await readBody(req);
     if (!body) { res.writeHead(413); return res.end('Request too large'); }
     const files = Array.isArray(body['files']) ? (body['files'] as FileAttachment[]) : [];
-    return streamCLI(String(body['content'] ?? ''), files, res);
+    return stream(String(body['content'] ?? ''), files, res);
   }
 
-  if (method === 'POST' && pathname === '/api/comment') {
+  if (method === 'POST' && pathname === '/api/ask-comment') {
     const payload = await readBody(req);
     if (!payload) { res.writeHead(413); return res.end('Request too large'); }
-    const lines: string[] = [];
-    for (const c of Object.values(payload) as CommentEntry[]) {
-      const quote = (c.quote ?? '').trim();
-      const text  = (c.text  ?? '').trim();
-      if (text) lines.push(quote ? `> "${quote}"\n\n${text}` : text);
-    }
-    if (!lines.length) {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ ok: false }));
-    }
-    return streamCLI(
-      '[Inline comments on your previous response]\n\n' + lines.join('\n\n---\n\n'),
-      [],
-      res,
-    );
+    console.log('Raw comment payload:\n', payload);   
+
+    const prompt = `In a previous session you have had the following conversation with the user:    
+    '''
+    ${payload.completeResponse}
+    '''
+    Regarding this, the user has selected the following quote from your response and made a comment on it:
+    '''
+    Quote: ${payload.quote}
+    Comment: ${payload.conversation}
+    '''
+    Please provide a helpful and concise response to the user's comment, taking into account the context 
+    of the original conversation. Address any questions or concerns raised in the comment, and provide 
+    additional information or clarification as needed. The comment might be critical and might contain
+    assistant response fragments, so please be empathetic and constructive in your reply. If the comment 
+    is not clear, ask for clarification.
+    `;
+
+    console.log('Generated prompt for comment:\n', prompt);
+
+    return stream(prompt, [], res, true);
   }
 
   if (method === 'DELETE' && pathname === '/api/conversation') {
@@ -313,13 +330,17 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
 // ── Start ─────────────────────────────────────────────────────────────────────
 
 (async () => {
-  process.stdout.write(`  Checking ${CLAUDE_BIN} … `);
-  try {
-    CLAUDE_VERSION = await testBin(CLAUDE_BIN);
-    console.log(`OK  (${CLAUDE_VERSION})`);
-  } catch (e) {
-    console.error(`FAILED\n\n  Error: ${(e as Error).message}\n  Binary: ${CLAUDE_BIN}\n`);
-    process.exit(1);
+  if (TEST_MODE) {
+    printTestModeBanner();
+  } else {
+    process.stdout.write(`  Checking ${CLAUDE_BIN} … `);
+    try {
+      CLAUDE_VERSION = await testBin(CLAUDE_BIN);
+      console.log(`OK  (${CLAUDE_VERSION})`);
+    } catch (e) {
+      console.error(`FAILED\n\n  Error: ${(e as Error).message}\n  Binary: ${CLAUDE_BIN}\n`);
+      process.exit(1);
+    }
   }
 
   server.on('error', (err: NodeJS.ErrnoException) => {
