@@ -33,7 +33,7 @@ The server starts on `http://localhost:8765` and opens your browser automaticall
 - **Comment context** — queued comments are sent along with your next message so Claude can address them directly
 - **File attachments** — attach text files to any message (binary files are noted but not inlined)
 - **Session continuity** — conversation history is maintained via the Claude CLI `--resume` flag
-- **Security** — localhost-only binding, DNS-rebinding protection, CSRF origin checks, and a strict CSP
+- **Security** — localhost-only binding, DNS-rebinding protection via `Host` header validation, same-origin checks on state-changing requests (POST/DELETE), and a CSP that disallows remote scripts and inline JS (inline styles are permitted)
 
 ## Development
 
