@@ -31,7 +31,7 @@
 
   <div id="workspace">
     <div id="chat">
-      <div id="empty-state">Send a message to start.</div>
+      <div id="empty-state">Send a message to start.</div>      
     </div>
   </div>
 
@@ -56,10 +56,12 @@
   <!-- Text-selection comment popover -->
   <div id="sel-popover" class="sel-pop">
     <div id="sel-quote" class="pop-quote"></div>
+    <div id="sel-thread" class="pop-thread" style="display:none"></div>
     <textarea id="sel-textarea" placeholder="Your comment…" rows="3"></textarea>
     <div class="pop-actions">
       <button class="pop-btn-cancel" id="sel-cancel">Cancel</button>
       <button class="pop-btn-submit" id="sel-submit">Comment →</button>
+      <button class="pop-btn-submit" id="sel-submit-ask">Ask →</button>
     </div>
   </div>
 

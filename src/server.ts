@@ -46,7 +46,8 @@ interface CliEvent {
 
 interface CommentEntry {
   quote?: string;
-  text?: string;
+  conversation?: string
+  completeResponse?: string;
 }
 
 interface FileAttachment {
@@ -163,7 +164,7 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse,
   startSSE(res);
 
   const args = ['--print', '--output-format', 'stream-json', '--verbose', '--include-partial-messages'];
-  if (cliSessionId) args.push('--resume', cliSessionId);
+  if (!isolated && cliSessionId) args.push('--resume', cliSessionId);
 
   const textParts: string[] = [];
 
@@ -229,7 +230,7 @@ function streamCLI(prompt: string, files: FileAttachment[], res: ServerResponse,
       try { event = JSON.parse(trimmed) as CliEvent; } catch { continue; }
 
       if (event.type === 'system' && event.subtype === 'init') {
-        cliSessionId = event.session_id ?? null;
+        if (!isolated) cliSessionId = event.session_id ?? null;
       } else if (event.type === 'stream_event') {
         const inner = event.event;
         if (inner?.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
@@ -265,6 +266,8 @@ const server = http.createServer(async (req: IncomingMessage, res: ServerRespons
   const url = new URL(req.url ?? '/', 'http://localhost');
   const { pathname } = url;
   const method = req.method;
+
+  console.log(`${method} ${pathname}`);
 
   if (method === 'GET') {
     const rel = pathname === '/' ? '/index.html' : pathname;

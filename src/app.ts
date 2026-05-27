@@ -1,7 +1,7 @@
 import './settings.js';
 import './comments.js';
 import { addUserMessage, addAssistantContainer, streamInto, resetChat } from './chat.js';
-import { selComments, updateSelHint } from './comments.js';
+import { selComments, updateSelHint, type Comment } from './comments.js';
 import { clearFiles, readFilesAsAttachments } from './files.js';
 
 let busy = false;
@@ -15,7 +15,15 @@ function setBusy(state: boolean): void {
 
 function autoResize(el: HTMLTextAreaElement): void {
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+  el.style.height =
+  Math.min(el.scrollHeight, 180) + 'px';
+}
+
+function renderCommentBlock(c: Comment): string {
+  const body = c.turns
+    .map(t => (t.role === 'user' ? 'User: ' : 'Assistant: ') + t.text)
+    .join('\n\n');
+  return `> ${c.quote}\n\n${body}`;
 }
 
 async function sendMessage(): Promise<void> {
@@ -28,9 +36,7 @@ async function sendMessage(): Promise<void> {
 
   let content = text;
   if (selComments.size > 0 && (document.getElementById('send-comments-chk') as HTMLInputElement).checked) {
-    const blocks = [...selComments.values()]
-      .map(c => `> ${c.quote}\n\n${c.text}`)
-      .join('\n\n---\n\n');
+    const blocks = [...selComments.values()].map(renderCommentBlock).join('\n\n---\n\n');
     content = blocks + '\n\n' + text;
   }
   if (selComments.size > 0) { selComments.clear(); updateSelHint(); }

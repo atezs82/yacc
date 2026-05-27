@@ -4,7 +4,7 @@ import {
   makeLiveSegment, makeThinkingEl, finalizeSegment, showError,
 } from './renderer.js';
 
-interface SseData {
+export interface SseData {
   delta?: string;
   done?: boolean;
   error?: string;
@@ -66,7 +66,7 @@ export function resetChat(): void {
     '<div id="empty-state">Send a message to start.</div>';
 }
 
-async function* parseSse(stream: ReadableStream<Uint8Array>): AsyncGenerator<SseData> {
+export async function* parseSse(stream: ReadableStream<Uint8Array>): AsyncGenerator<SseData> {
   const dec = new TextDecoder();
   let buf = '';
   for await (const chunk of stream) {
