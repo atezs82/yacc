@@ -1,25 +1,25 @@
-import type { IncomingMessage, ServerResponse } from 'http';
+import type { IncomingMessage, ServerResponse } from "http";
 
 const CSP = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "connect-src 'self'",
-  "img-src 'self' data: blob:",
-  "frame-ancestors 'none'",
-].join('; ');
+	"default-src 'none'",
+	"script-src 'self'",
+	"style-src 'self' 'unsafe-inline'",
+	"connect-src 'self'",
+	"img-src 'self' data: blob:",
+	"frame-ancestors 'none'",
+].join("; ");
 
 function escHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+	return s
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 }
 
 function localOnlyPage(remoteAddress: string): string {
-  const addr = escHtml(remoteAddress);
-  return `<!DOCTYPE html>
+	const addr = escHtml(remoteAddress);
+	return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -81,53 +81,63 @@ function localOnlyPage(remoteAddress: string): string {
 }
 
 export class SecurityLayer {
-  private readonly port: number;
-  private readonly verbose: boolean;
+	private readonly port: number;
+	private readonly verbose: boolean;
 
-  constructor(port: number, verbose = false) {
-    this.port = port;
-    this.verbose = verbose;
-  }
+	constructor(port: number, verbose = false) {
+		this.port = port;
+		this.verbose = verbose;
+	}
 
-  private isLocalHost(req: IncomingMessage): boolean {
-    const host = req.headers['host'];
-    return host === `localhost:${this.port}` || host === `127.0.0.1:${this.port}`;
-  }
+	private isLocalHost(req: IncomingMessage): boolean {
+		const host = req.headers["host"];
+		return (
+			host === `localhost:${this.port}` || host === `127.0.0.1:${this.port}`
+		);
+	}
 
-  private isSameOrigin(req: IncomingMessage): boolean {
-    const origin = req.headers['origin'];
-    if (!origin) return true;
-    return (
-      origin === `http://localhost:${this.port}` ||
-      origin === `http://127.0.0.1:${this.port}`
-    );
-  }
+	private isSameOrigin(req: IncomingMessage): boolean {
+		const origin = req.headers["origin"];
+		if (!origin) return true;
+		return (
+			origin === `http://localhost:${this.port}` ||
+			origin === `http://127.0.0.1:${this.port}`
+		);
+	}
 
-  guard(req: IncomingMessage, res: ServerResponse): boolean {
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', CSP);
+	guard(req: IncomingMessage, res: ServerResponse): boolean {
+		res.setHeader("X-Frame-Options", "DENY");
+		res.setHeader("X-Content-Type-Options", "nosniff");
+		res.setHeader("Content-Security-Policy", CSP);
 
-    if (this.verbose) {
-      console.log(`[guard] ${req.method} ${req.url}  host=${req.headers['host'] ?? '(none)'}  origin=${req.headers['origin'] ?? '(none)'}`);
-    }
+		if (this.verbose) {
+			console.log(
+				`[guard] ${req.method} ${req.url}  host=${req.headers["host"] ?? "(none)"}  origin=${req.headers["origin"] ?? "(none)"}`,
+			);
+		}
 
-    if (!this.isLocalHost(req)) {
-      if (this.verbose) console.log(`[guard] BLOCKED — host not local`);
-      const ip = req.socket.remoteAddress ?? 'unknown';
-      res.writeHead(403, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(localOnlyPage(ip));
-      return true;
-    }
+		if (!this.isLocalHost(req)) {
+			if (this.verbose) console.log(`[guard] BLOCKED — host not local`);
+			const ip = req.socket.remoteAddress ?? "unknown";
+			res.writeHead(403, { "Content-Type": "text/html; charset=utf-8" });
+			res.end(localOnlyPage(ip));
+			return true;
+		}
 
-    if ((req.method === 'POST' || req.method === 'DELETE') && !this.isSameOrigin(req)) {
-      if (this.verbose) console.log(`[guard] BLOCKED — origin mismatch: ${req.headers['origin']}`);
-      res.writeHead(403);
-      res.end('Forbidden');
-      return true;
-    }
+		if (
+			(req.method === "POST" || req.method === "DELETE") &&
+			!this.isSameOrigin(req)
+		) {
+			if (this.verbose)
+				console.log(
+					`[guard] BLOCKED — origin mismatch: ${req.headers["origin"]}`,
+				);
+			res.writeHead(403);
+			res.end("Forbidden");
+			return true;
+		}
 
-    if (this.verbose) console.log(`[guard] PASSED`);
-    return false;
-  }
+		if (this.verbose) console.log(`[guard] PASSED`);
+		return false;
+	}
 }
