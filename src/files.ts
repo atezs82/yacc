@@ -29,10 +29,11 @@ export function readFilesAsAttachments(): Promise<FileAttachment[]> {
 }
 
 function render(): void {
-	const list = document.getElementById("file-list")!;
+	const list = document.getElementById("file-list");
+	if (!list) return;
 	list.innerHTML = "";
-	for (let i = 0; i < _files.length; i++) {
-		list.appendChild(makePill(_files[i]!, i));
+	for (const [i, f] of _files.entries()) {
+		list.appendChild(makePill(f, i));
 	}
 }
 
@@ -62,8 +63,8 @@ function makePill(f: File, idx: number): HTMLElement {
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
 
 document
-	.getElementById("attach-btn")!
-	.addEventListener("click", () => fileInput.click());
+	.getElementById("attach-btn")
+	?.addEventListener("click", () => fileInput.click());
 
 fileInput.addEventListener("change", () => {
 	if (!fileInput.files) return;

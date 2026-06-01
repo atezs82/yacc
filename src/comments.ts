@@ -22,17 +22,19 @@ export function pendingComments(): Comment[] {
 
 export function updateSelHint(): void {
 	const n = pendingComments().length;
-	document.getElementById("hint-bar")!.classList.toggle("visible", n > 0);
-	document.getElementById("hint-text")!.textContent =
-		n > 0 ? `${n} comment${n > 1 ? "s" : ""} above will be sent` : "";
+	document.getElementById("hint-bar")?.classList.toggle("visible", n > 0);
+	const text = document.getElementById("hint-text");
+	if (text)
+		text.textContent =
+			n > 0 ? `${n} comment${n > 1 ? "s" : ""} above will be sent` : "";
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 const QUOTE_MAX = 80;
 const ellipsize = (s: string): string =>
-	s.length > QUOTE_MAX ? s.slice(0, QUOTE_MAX) + "…" : s;
-const quoteDisplay = (s: string): string => '"' + ellipsize(s) + '"';
+	s.length > QUOTE_MAX ? `${s.slice(0, QUOTE_MAX)}…` : s;
+const quoteDisplay = (s: string): string => `"${ellipsize(s)}"`;
 
 function $<T extends HTMLElement>(id: string): T {
 	return document.getElementById(id) as T;
@@ -59,8 +61,8 @@ function placePopover(
 		side === "above"
 			? Math.max(8, refRect.top - H - GAP)
 			: Math.min(window.innerHeight - H - 8, refRect.bottom + GAP);
-	popEl.style.left = left + "px";
-	popEl.style.top = top + "px";
+	popEl.style.left = `${left}px`;
+	popEl.style.top = `${top}px`;
 	return side;
 }
 
@@ -165,7 +167,7 @@ class SelPopover {
 			const frag = this.range.extractContents();
 			markEl = document.createElement("mark");
 			markEl.className = "sel-commented";
-			markEl.dataset["id"] = id;
+			markEl.dataset.id = id;
 			markEl.appendChild(frag);
 			this.range.insertNode(markEl);
 		} catch {
@@ -174,7 +176,7 @@ class SelPopover {
 
 		const anchor = document.createElement("button");
 		anchor.className = "comment-anchor";
-		anchor.dataset["id"] = id;
+		anchor.dataset.id = id;
 		anchor.textContent = "💬";
 		anchor.title = "View comment";
 		if (markEl) markEl.after(anchor);
@@ -198,9 +200,9 @@ class SelPopover {
 
 	private buildConversationPayload(newUserText: string): string {
 		const parts = this.turns.map(
-			(t) => (t.role === "user" ? "User: " : "Assistant: ") + t.text,
+			(t) => `${t.role === "user" ? "User: " : "Assistant: "}${t.text}`,
 		);
-		parts.push("User: " + newUserText);
+		parts.push(`User: ${newUserText}`);
 		return parts.join("\n\n");
 	}
 
@@ -270,8 +272,7 @@ class SelPopover {
 				return;
 			}
 			assistantEl.className = "pop-turn pop-turn-error";
-			assistantEl.textContent =
-				"⚠ " + ((err as Error).message || "Failed to ask.");
+			assistantEl.textContent = `⚠ ${(err as Error).message || "Failed to ask."}`;
 			this.turns.pop();
 		} finally {
 			this.abort = null;
@@ -337,8 +338,7 @@ class ViewPopover {
 		const c = this.viewId ? selComments.get(this.viewId) : null;
 		if (!c) return;
 		const userTurns = c.turns.filter((t) => t.role === "user");
-		const editable =
-			userTurns.length > 0 ? userTurns[userTurns.length - 1]!.text : "";
+		const editable = userTurns[userTurns.length - 1]?.text ?? "";
 		this.textarea.value = editable;
 		this.textarea.rows = Math.max(3, editable.split("\n").length);
 		this.bodyEl.style.display = "none";
@@ -361,8 +361,9 @@ class ViewPopover {
 		const c = selComments.get(this.viewId);
 		if (c) {
 			for (let i = c.turns.length - 1; i >= 0; i--) {
-				if (c.turns[i]!.role === "user") {
-					c.turns[i]!.text = newText;
+				const turn = c.turns[i];
+				if (turn?.role === "user") {
+					turn.text = newText;
 					break;
 				}
 			}
@@ -372,11 +373,12 @@ class ViewPopover {
 	}
 
 	private onDelete(): void {
-		const c = this.viewId ? selComments.get(this.viewId) : null;
+		if (!this.viewId) return;
+		const c = selComments.get(this.viewId);
 		if (c) {
 			if (c.markEl?.isConnected) c.markEl.replaceWith(...c.markEl.childNodes);
 			c.anchorEl.remove();
-			selComments.delete(this.viewId!);
+			selComments.delete(this.viewId);
 			updateSelHint();
 		}
 		this.close();
@@ -384,7 +386,7 @@ class ViewPopover {
 
 	private static renderTurns(turns: Turn[]): string {
 		return turns
-			.map((t) => (t.role === "user" ? "You:\n" : "Claude:\n") + t.text)
+			.map((t) => `${t.role === "user" ? "You:\n" : "Claude:\n"}${t.text}`)
 			.join("\n\n");
 	}
 }
@@ -400,9 +402,9 @@ document.addEventListener("mouseup", (e) => {
 	const sel = window.getSelection();
 	if (!sel || sel.isCollapsed || !sel.toString().trim()) return;
 	const range = sel.getRangeAt(0);
-	let node = range.commonAncestorContainer;
-	if (node.nodeType === Node.TEXT_NODE) node = (node as Text).parentElement!;
-	if (!(node as Element).closest(".segment:not(.live)")) return;
+	let node: Node | null = range.commonAncestorContainer;
+	if (node.nodeType === Node.TEXT_NODE) node = (node as Text).parentElement;
+	if (!node || !(node as Element).closest(".segment:not(.live)")) return;
 	selPop.openForRange(range.cloneRange(), sel.toString().trim());
 });
 
@@ -419,7 +421,8 @@ document.addEventListener("click", (e) => {
 	);
 	if (!anchor) return;
 	e.stopPropagation();
-	const id = anchor.dataset["id"]!;
+	const id = anchor.dataset.id;
+	if (!id) return;
 	const c = selComments.get(id);
 	if (!c) return;
 	const isLatest = isLatestResponse(anchor.closest(".assistant-msg"));

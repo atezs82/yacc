@@ -7,7 +7,8 @@
 		"yet-another-claude-commenter": "./server.js"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json",
+		"build": "tsc -p tsconfig.server.json && tsc -p tsconfig.client.json && npm run biome",
+		"biome": "biome check src",
 		"start": "node server.js",
 		"prepublishOnly": "npm run build"
 	},
@@ -15,6 +16,7 @@
 		"@anthropic-ai/sdk": "^0.91.1"
 	},
 	"devDependencies": {
+		"@biomejs/biome": "2.4.16",
 		"@highlightjs/cdn-assets": "^11.11.1",
 		"@types/node": "^22.0.0",
 		"dompurify": "^3.4.2",
@@ -25,6 +27,11 @@
 	"engines": {
 		"node": ">=18"
 	},
-	"files": ["server.js", "security.js", "testMode.js", "static/"],
+	"files": [
+		"server.js",
+		"security.js",
+		"testMode.js",
+		"static/"
+	],
 	"license": "MIT"
 }

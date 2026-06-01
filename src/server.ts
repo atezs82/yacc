@@ -1,17 +1,21 @@
 #!/usr/bin/env node
-import { execFile, spawn } from "child_process";
-import fs from "fs";
-import http from "http";
-import type { IncomingMessage, ServerResponse } from "http";
-import path from "path";
-import { fileURLToPath } from "url";
+import {
+	type ChildProcessWithoutNullStreams,
+	execFile,
+	spawn,
+} from "node:child_process";
+import fs from "node:fs";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import http from "node:http";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { SecurityLayer } from "./security.js";
 import {
-	TEST_MODE_BIN,
-	TEST_MODE_VERSION,
 	hasTestFlag,
 	printTestModeBanner,
 	streamCanned,
+	TEST_MODE_BIN,
+	TEST_MODE_VERSION,
 } from "./testMode.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,12 +48,6 @@ interface CliEvent {
 	result?: string;
 }
 
-interface CommentEntry {
-	quote?: string;
-	conversation?: string;
-	completeResponse?: string;
-}
-
 interface FileAttachment {
 	name: string;
 	type: string;
@@ -61,15 +59,16 @@ interface FileAttachment {
 function parseCliArg(): string | null {
 	const args = process.argv.slice(2);
 	for (let i = 0; i < args.length; i++) {
-		if (args[i] === "--claude-path" && args[i + 1]) return args[i + 1]!;
+		const next = args[i + 1];
+		if (args[i] === "--claude-path" && next !== undefined) return next;
 		const m = args[i]?.match(/^--claude-path=(.+)$/);
-		if (m) return m[1]!;
+		if (m?.[1] !== undefined) return m[1];
 	}
 	return null;
 }
 
 function resolveBin(raw: string): string {
-	const bin = path.resolve(raw.replace(/^~/, process.env["HOME"] ?? "~"));
+	const bin = path.resolve(raw.replace(/^~/, process.env.HOME ?? "~"));
 	if (path.basename(bin) !== "claude") {
 		console.error(
 			`\n  Error: binary must be named "claude" (got "${path.basename(bin)}")\n`,
@@ -103,7 +102,7 @@ function testBin(bin: string): Promise<string> {
 
 const TEST_MODE = hasTestFlag(process.argv);
 
-const rawPath = parseCliArg() ?? process.env["CLAUDE_PATH"];
+const rawPath = parseCliArg() ?? process.env.CLAUDE_PATH;
 if (!TEST_MODE && !rawPath) {
 	console.error("\n  Error: Claude binary path not specified.");
 	console.error(
@@ -217,17 +216,17 @@ function streamCLI(
 	}
 
 	const effectivePrompt =
-		textParts.length > 0 ? textParts.join("\n\n") + "\n\n" + prompt : prompt;
+		textParts.length > 0 ? `${textParts.join("\n\n")}\n\n${prompt}` : prompt;
 
 	args.push(effectivePrompt);
 	if (VERBOSE) {
 		console.log(
-			"\n[claude args] " + [CLAUDE_BIN, ...args.slice(0, -1)].join(" "),
+			`\n[claude args] ${[CLAUDE_BIN, ...args.slice(0, -1)].join(" ")}`,
 		);
-		console.log("[claude ←]\n" + effectivePrompt + "\n");
+		console.log(`[claude ←]\n${effectivePrompt}\n`);
 	}
 
-	let proc;
+	let proc: ChildProcessWithoutNullStreams;
 	try {
 		proc = spawn(CLAUDE_BIN, args);
 	} catch {
@@ -287,9 +286,7 @@ function streamCLI(
 			} else if (event.type === "result") {
 				sentResult = true;
 				if (VERBOSE)
-					console.log(
-						"\n[claude →]\n" + (verboseText || event.result || "") + "\n",
-					);
+					console.log(`\n[claude →]\n${verboseText || event.result || ""}\n`);
 				res.write(
 					event.is_error
 						? sse({ error: event.result ?? "CLI error" })
@@ -346,10 +343,10 @@ const server = http.createServer(
 				res.writeHead(413);
 				return res.end("Request too large");
 			}
-			const files = Array.isArray(body["files"])
-				? (body["files"] as FileAttachment[])
+			const files = Array.isArray(body.files)
+				? (body.files as FileAttachment[])
 				: [];
-			return stream(String(body["content"] ?? ""), files, res);
+			return stream(String(body.content ?? ""), files, res);
 		}
 
 		if (method === "POST" && pathname === "/api/ask-comment") {

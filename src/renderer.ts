@@ -60,15 +60,17 @@ export function makeThinkingEl(): HTMLDivElement {
 
 export function finalizeSegment(liveEl: HTMLDivElement, text: string): void {
 	liveEl.className = "segment";
-	liveEl.dataset["id"] = `seg-${++_segCounter}`;
+	liveEl.dataset.id = `seg-${++_segCounter}`;
 	liveEl.innerHTML = DOMPurify.sanitize(marked.parse(text));
-	liveEl.querySelectorAll("pre code").forEach((b) => hljs.highlightElement(b));
+	for (const b of liveEl.querySelectorAll<HTMLElement>("pre code")) {
+		hljs.highlightElement(b);
+	}
 }
 
 export function showError(segContainer: HTMLElement, msg: string): void {
 	const el = document.createElement("div");
 	el.style.cssText =
 		"color:#f85149;font-size:13px;padding:8px 10px;border:1px solid #4d1919;border-radius:6px;background:#1a0a0a;";
-	el.textContent = "⚠ " + msg;
+	el.textContent = `⚠ ${msg}`;
 	segContainer.appendChild(el);
 }

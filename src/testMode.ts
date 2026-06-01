@@ -1,4 +1,4 @@
-import type { ServerResponse } from "http";
+import type { ServerResponse } from "node:http";
 
 interface FileAttachment {
 	name: string;
@@ -38,7 +38,7 @@ export function printTestModeBanner(): void {
 }
 
 function buildCanned(prompt: string, files: FileAttachment[]): string {
-	const echo = prompt.length > 200 ? prompt.slice(0, 200) + "…" : prompt;
+	const echo = prompt.length > 200 ? `${prompt.slice(0, 200)}…` : prompt;
 	const attached = files.length
 		? `\n\n_Attached: ${files.map((f) => f.name).join(", ")}._`
 		: "";
@@ -78,12 +78,13 @@ export function streamCanned(
 	let i = 0;
 	const tick = (): void => {
 		if (res.writableEnded) return;
-		if (i >= chunks.length) {
+		const chunk = chunks[i++];
+		if (chunk === undefined) {
 			res.write(sse({ done: true }));
 			res.end();
 			return;
 		}
-		res.write(sse({ delta: chunks[i++]! }));
+		res.write(sse({ delta: chunk }));
 		setTimeout(tick, 25);
 	};
 	tick();

@@ -1,9 +1,9 @@
 import {
-	Segmenter,
 	finalizeSegment,
 	makeLiveSegment,
 	makeThinkingEl,
 	resetSegCounter,
+	Segmenter,
 	showError,
 } from "./renderer.js";
 import { apiFetch } from "./settings.js";
@@ -20,15 +20,20 @@ export function isLatestResponse(msgEl: Element | null): boolean {
 	return msgEl !== null && msgEl === _lastAssistantMsg;
 }
 
+function getChat(): HTMLElement {
+	const chat = document.getElementById("chat");
+	if (!chat) throw new Error("#chat element missing");
+	return chat;
+}
+
 export function scrollChat(): void {
-	const chat = document.getElementById("chat")!;
+	const chat = getChat();
 	chat.scrollTop = chat.scrollHeight;
 }
 
 function appendToChat(el: HTMLElement): void {
-	const chat = document.getElementById("chat")!;
 	document.getElementById("empty-state")?.remove();
-	chat.appendChild(el);
+	getChat().appendChild(el);
 	scrollChat();
 }
 
@@ -44,7 +49,7 @@ export function addUserMessage(text: string, fileNames: string[] = []): void {
 		for (const name of fileNames) {
 			const chip = document.createElement("span");
 			chip.className = "user-msg-file-chip";
-			chip.textContent = "📎 " + name;
+			chip.textContent = `📎 ${name}`;
 			row.appendChild(chip);
 		}
 		el.appendChild(row);
@@ -66,8 +71,7 @@ export function addAssistantContainer(): HTMLElement {
 export function resetChat(): void {
 	_lastAssistantMsg = null;
 	resetSegCounter();
-	document.getElementById("chat")!.innerHTML =
-		'<div id="empty-state">Send a message to start.</div>';
+	getChat().innerHTML = '<div id="empty-state">Send a message to start.</div>';
 }
 
 export async function* parseSse(
@@ -116,8 +120,9 @@ export async function streamInto(
 			throw new Error("Cannot reach server — is it running?");
 		}
 		if (!res.ok) throw new Error(`Server returned ${res.status}`);
+		if (!res.body) throw new Error("Server returned an empty response body");
 
-		for await (const data of parseSse(res.body!)) {
+		for await (const data of parseSse(res.body)) {
 			if (data.error) {
 				thinkEl.remove();
 				if (liveEl.isConnected) liveEl.remove();

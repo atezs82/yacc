@@ -1,4 +1,4 @@
-import type { IncomingMessage, ServerResponse } from "http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 const CSP = [
 	"default-src 'none'",
@@ -90,14 +90,14 @@ export class SecurityLayer {
 	}
 
 	private isLocalHost(req: IncomingMessage): boolean {
-		const host = req.headers["host"];
+		const host = req.headers.host;
 		return (
 			host === `localhost:${this.port}` || host === `127.0.0.1:${this.port}`
 		);
 	}
 
 	private isSameOrigin(req: IncomingMessage): boolean {
-		const origin = req.headers["origin"];
+		const origin = req.headers.origin;
 		if (!origin) return true;
 		return (
 			origin === `http://localhost:${this.port}` ||
@@ -112,7 +112,7 @@ export class SecurityLayer {
 
 		if (this.verbose) {
 			console.log(
-				`[guard] ${req.method} ${req.url}  host=${req.headers["host"] ?? "(none)"}  origin=${req.headers["origin"] ?? "(none)"}`,
+				`[guard] ${req.method} ${req.url}  host=${req.headers.host ?? "(none)"}  origin=${req.headers.origin ?? "(none)"}`,
 			);
 		}
 
@@ -129,9 +129,7 @@ export class SecurityLayer {
 			!this.isSameOrigin(req)
 		) {
 			if (this.verbose)
-				console.log(
-					`[guard] BLOCKED — origin mismatch: ${req.headers["origin"]}`,
-				);
+				console.log(`[guard] BLOCKED — origin mismatch: ${req.headers.origin}`);
 			res.writeHead(403);
 			res.end("Forbidden");
 			return true;

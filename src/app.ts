@@ -25,12 +25,12 @@ function setBusy(state: boolean): void {
 
 function autoResize(el: HTMLTextAreaElement): void {
 	el.style.height = "auto";
-	el.style.height = Math.min(el.scrollHeight, 180) + "px";
+	el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
 }
 
 function renderCommentBlock(c: Comment): string {
 	const body = c.turns
-		.map((t) => (t.role === "user" ? "User: " : "Assistant: ") + t.text)
+		.map((t) => `${t.role === "user" ? "User: " : "Assistant: "}${t.text}`)
 		.join("\n\n");
 	return `> ${c.quote}\n\n${body}`;
 }
@@ -50,7 +50,7 @@ async function sendMessage(): Promise<void> {
 		(document.getElementById("send-comments-chk") as HTMLInputElement).checked
 	) {
 		const blocks = pending.map(renderCommentBlock).join("\n\n---\n\n");
-		content = blocks + "\n\n" + text;
+		content = `${blocks}\n\n${text}`;
 	}
 	if (pending.length > 0) {
 		for (const c of pending) c.sent = true;
@@ -77,7 +77,7 @@ async function sendMessage(): Promise<void> {
 	}
 }
 
-document.getElementById("send-btn")!.addEventListener("click", sendMessage);
+document.getElementById("send-btn")?.addEventListener("click", sendMessage);
 (document.getElementById("input") as HTMLTextAreaElement).addEventListener(
 	"keydown",
 	(e: KeyboardEvent) => {
@@ -94,7 +94,7 @@ document.getElementById("send-btn")!.addEventListener("click", sendMessage);
 	},
 );
 
-document.getElementById("reset-btn")!.addEventListener("click", async () => {
+document.getElementById("reset-btn")?.addEventListener("click", async () => {
 	await fetch("/api/conversation", { method: "DELETE" });
 	resetChat();
 	selComments.clear();
